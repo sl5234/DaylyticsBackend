@@ -1,16 +1,23 @@
 from pydantic import BaseModel
-from datetime import date
-from typing import Optional, Dict, Any
+from enum import Enum
+
+
+class ResponseMode(str, Enum):
+    TEXT = "TEXT"
+    TABLE = "TABLE"
+    METRIC = "METRIC"
 
 
 class CreateAnalysisRequest(BaseModel):
-    date: date
-    use_llm: Optional[bool] = False
+    StartDate: str
+    EndDate: str
+    ResponseMode: ResponseMode
+
+
+class OutputConfig(BaseModel):
+    S3OutputPath: str
 
 
 class AnalysisResponse(BaseModel):
-    status: str
-    date: date
-    metrics: Dict[str, Any]
-    categories: Dict[str, Any]
-
+    AnalysisRid: str
+    OutputConfig: OutputConfig

@@ -1,58 +1,36 @@
-from datetime import date
 from typing import Dict, Any
-from app.models.toggl import TogglDailyLogs
-from app.models.metrics import MetricsData
-from app.services.toggl_service import get_daily_logs
-from app.services.categorization_service import categorize_entries
-from app.services.metrics_service import emit_metrics
+import uuid
+from app.models.analysis import ResponseMode
 
 
-def create_analysis(target_date: date, use_llm: bool = False) -> Dict[str, Any]:
+def create_analysis(
+    start_date: str, end_date: str, response_mode: ResponseMode
+) -> Dict[str, Any]:
     """
-    Create analysis for a given day:
-    1. Fetch logs from Toggl Track API
-    2. Categorize entries (rule-based or LLM)
-    3. Emit metrics to configured backend
-    
+    Create analysis for a date range:
+    1. Fetch logs from Toggl Track API for the date range
+    2. Process based on ResponseMode
+    3. Generate analysis ID and output configuration
+
     Args:
-        target_date: The date to analyze
-        use_llm: Whether to use LLM for categorization
-        
+        start_date: Start date for analysis (string format)
+        end_date: End date for analysis (string format)
+        response_mode: Response mode (TEXT | TABLE | METRIC)
+
     Returns:
-        Dictionary containing analysis results
+        Dictionary containing AnalysisRid and OutputConfig
     """
-    # Step 1: Get daily logs from Toggl
-    daily_logs = get_daily_logs(target_date)
-    
-    # Step 2: Categorize entries
-    categories = categorize_entries(daily_logs.entries, use_llm=use_llm)
-    
-    # Step 3: Prepare metrics data
-    metrics_data = _prepare_metrics_data(target_date, daily_logs, categories)
-    
-    # Step 4: Emit metrics
-    emit_metrics(metrics_data)
-    
+    # Generate unique analysis ID
+    analysis_rid = str(uuid.uuid4())
+
+    # TODO: Fetch logs from Toggl for date range
+    # TODO: Process based on response_mode
+    # TODO: Generate S3 output path
+
+    # Generate S3 output path (placeholder)
+    s3_output_path = f"s3://daylytics/analysis/{analysis_rid}/output"
+
     return {
-        "status": "success",
-        "date": target_date,
-        "metrics": metrics_data.model_dump(),
-        "categories": categories
+        "AnalysisRid": analysis_rid,
+        "OutputConfig": {"S3OutputPath": s3_output_path},
     }
-
-
-def _prepare_metrics_data(target_date: date, logs: TogglDailyLogs, categories: Dict[str, str]) -> MetricsData:
-    """
-    Prepare metrics data from logs and categories.
-    
-    Args:
-        target_date: The date being analyzed
-        logs: The daily logs from Toggl
-        categories: The categorized entries
-        
-    Returns:
-        MetricsData object ready for emission
-    """
-    # TODO: Calculate category totals, total hours, etc.
-    pass
-

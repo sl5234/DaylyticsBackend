@@ -3,40 +3,40 @@
 ## Common Anti-Patterns to Avoid
 
 ### 1. **Mutable Default Arguments**
-❌ `def process(items=[]): items.append("new"); return items`  
+❌ `def process(items=[]): items.append("new"); return items`
 ✅ `def process(items=None): items = items or []; items.append("new"); return items`
 
 ### 2. **Using `pass` in Production**
-❌ `def get_logs(date): pass  # TODO`  
+❌ `def get_logs(date): pass  # TODO`
 ✅ `def get_logs(date): raise NotImplementedError("Pending")`
 
 ### 3. **Bare `except` Clauses**
-❌ `try: risky(); except: pass`  
+❌ `try: risky(); except: pass`
 ✅ `try: risky(); except SpecificError as e: logger.error(f"Failed: {e}")`
 
 ### 4. **Pydantic v2 Migration**
-❌ `metrics_data.dict()` (deprecated)  
+❌ `metrics_data.dict()` (deprecated)
 ✅ `metrics_data.model_dump()`
 
 ### 5. **Missing Type Hints**
-❌ `def process(data): return data.items()`  
+❌ `def process(data): return data.items()`
 ✅ `def process(data: Dict[str, Any]) -> List[Any]: return list(data.items())`
 
 ### 6. **Hardcoding Configuration**
-❌ `api_key = "secret123"`  
+❌ `api_key = "secret123"`
 ✅ `api_key = settings.toggl_api_token` (from environment)
 
 ### 7. **None Comparison**
-❌ `if value == None:`  
+❌ `if value == None:`
 ✅ `if value is None:`
 
 ### 8. **Wildcard Imports**
-❌ `from app.services import *`  
+❌ `from app.services import *`
 ✅ `from app.services import analysis_service`
 
 ### 9. **Indentation**
-No trailing whitespaces.
-No unnecessary indentation after new line.
+* No trailing whitespaces.
+* No unnecessary indentation after new line.
 
 ## Best Practices
 

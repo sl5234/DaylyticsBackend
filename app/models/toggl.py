@@ -17,4 +17,3 @@ class TogglTimeEntry(BaseModel):
 class TogglDailyLogs(BaseModel):
     date: str
     entries: List[TogglTimeEntry]
-

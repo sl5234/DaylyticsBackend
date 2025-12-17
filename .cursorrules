@@ -45,6 +45,8 @@ After making any code changes, you MUST:
 
 - **Architecture**: Follow layered architecture (Routes → Services → External APIs)
 - **Python Style**: Follow AGENTS.md anti-patterns and best practices
+  - **CRITICAL**: Remove all trailing whitespaces from code files
+  - **CRITICAL**: No unnecessary indentation after new lines
 - **Configuration**: Use environment variables via `app/config.py`
 - **Type Safety**: Use Pydantic models and type hints everywhere
 - **Service Separation**: One responsibility per service
