@@ -36,7 +36,7 @@ A Python backend API built with FastAPI.
    ```bash
    export AWS_ACCESS_KEY_ID="your-access-key-id"
    export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
-   export AWS_DEFAULT_REGION="us-east-1"  # Optional: set default region
+   export AWS_DEFAULT_REGION="us-west-2"  # Optional: set default region
    ```
 
    **Option B: AWS credentials file:**
@@ -45,7 +45,7 @@ A Python backend API built with FastAPI.
    [default]
    aws_access_key_id = your-access-key-id
    aws_secret_access_key = your-secret-access-key
-   region = us-east-1
+   region = us-west-2
    ```
 
 5. **Run the application:**
@@ -86,12 +86,6 @@ A Python backend API built with FastAPI.
    ```
 
 4. **Verify your code builds and works:**
-   The best way to verify your Python library builds and works correctly is to run the test suite:
-   ```bash
-   pytest
-   ```
-   
-   If all tests pass, your code is working correctly. You can also run the application to verify it starts:
    ```bash
    uvicorn app.main:app --reload
    ```

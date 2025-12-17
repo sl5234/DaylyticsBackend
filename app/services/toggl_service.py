@@ -1,69 +1,73 @@
-from datetime import date
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 import httpx
-from app.models.toggl import TogglDailyLogs
-from app.services.helpers.toggl_service_helper import get_toggl_cred
+from app.models.toggl import TogglTimeEntry
+from app.services.helpers.toggl_service_helper import (
+    get_toggl_cred,
+    deserialize_time_entries,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def _authenticate_with_credentials(encoded_credentials: str) -> Dict[str, Any]:
+def _get_time_entries(start_date: str, end_date: str) -> List[Dict[str, Any]]:
     """
-    Authenticate with Toggl Track API using base64 encoded credentials.
-
-    Uses Basic authentication with pre-encoded credentials to reset the API token.
+    Retrieve time entries from Toggl Track API for a date range using API token.
 
     Args:
-        encoded_credentials: Base64 encoded "email:password" string
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
 
     Returns:
-        Dictionary containing the API response with the new token
+        List of time entry dictionaries from Toggl API
 
     Raises:
         httpx.HTTPStatusError: If the API request fails (403, 500, etc.)
     """
-    logger.info("Authenticating with Toggl Track API")
+    logger.info(f"Retrieving Toggl time entries from {start_date} to {end_date}")
+
+    encoded_credentials = get_toggl_cred()
 
     headers = {
         "content-type": "application/json",
         "Authorization": f"Basic {encoded_credentials}",
     }
 
-    url = "https://api.track.toggl.com/api/v9/me/reset_token"
+    url = "https://api.track.toggl.com/api/v9/me/time_entries"
+
+    params = {
+        "start_date": start_date,
+        "end_date": end_date,
+    }
 
     with httpx.Client() as client:
-        response = client.post(url, headers=headers)
+        response = client.get(url, headers=headers, params=params)
         response.raise_for_status()  # Raises HTTPStatusError for 4xx/5xx responses
-        logger.info("Successfully authenticated with Toggl Track API")
-        return response.json()
+        time_entries = response.json()
+        logger.info(f"Successfully retrieved {len(time_entries)} time entries")
+        return time_entries
 
 
-def authenticate() -> Dict[str, Any]:
+def get_activity_logs(start_date: str, end_date: str) -> List[TogglTimeEntry]:
     """
-    Authenticate with Toggl Track API and reset token.
+    Get activity logs for a date range.
 
-    Retrieves credentials from config, encodes them, and authenticates with Toggl API.
-
-    Returns:
-        Dictionary containing the API response with the new token
-
-    Raises:
-        ValueError: If email or password is not configured
-        httpx.HTTPStatusError: If the API request fails (403, 500, etc.)
-    """
-    encoded_credentials = get_toggl_cred()
-    return _authenticate_with_credentials(encoded_credentials)
-
-
-def get_daily_logs(target_date: date) -> TogglDailyLogs:
-    """
-    Retrieve time entries from Toggl Track API for a specific day.
+    Retrieves time entries from Toggl API and deserializes them into TogglTimeEntry objects.
 
     Args:
-        target_date: The date to retrieve logs for
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
 
     Returns:
-        TogglDailyLogs containing the day's time entries
+        List of TogglTimeEntry objects
+
+    Raises:
+        httpx.HTTPStatusError: If the API request fails (403, 500, etc.)
     """
-    raise NotImplementedError("Toggl Track API integration pending")
+    # Step 1: Get raw time entries from Toggl API
+    time_entries = _get_time_entries(start_date, end_date)
+
+    # Step 2: Build structured activity logs
+    activity_logs = deserialize_time_entries(time_entries)
+
+    return activity_logs

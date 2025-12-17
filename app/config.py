@@ -25,9 +25,15 @@ class Settings(BaseSettings):
     )
 
     # Toggl Track API (encrypted values)
-    encrypted_toggl_api_token: str = "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AEaxub94N2UG9z5FAZVO5DWAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMZ0EociGkIHEcd/LeAgEQgDsRzSYFs7mYrAFOAF5sbyRZxAqe+QZjlRGRfATwfbCIcAou6Xt1iwxZClYtH0CkOGCbaj+Nv/KIQ47sCQ=="
-    encrypted_toggl_email: str = "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AGgr6DlKzWMviXYErFt/jDZAAAAdDByBgkqhkiG9w0BBwagZTBjAgEAMF4GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMkz5Qkeft9mTcAuMeAgEQgDG+FJn6ReZNe6KngPHgIvdJ9RBSGq/Nx2JTClE6k9aaeE4+0rBPKYgs0TKr6PsFBdkq"
-    encrypted_toggl_password: str = "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AE4eTN/RRoNeohMlPfTWPWHAAAAaDBmBgkqhkiG9w0BBwagWTBXAgEAMFIGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMqnQxOt64OqXCnPDdAgEQgCUkBJGegvNMFYl/+4PITgXcf7NE33uhUzYWRPcCORfVdXjFNxSS"
+    encrypted_toggl_api_token: str = (
+        "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AEppUF7FLTz2DaUQy+zza2kAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMORXUzcZf2KGd03SAAgEQgDueiST/NvgyT7IC3mlwlwxLBMyJPcIze+Yq8pNCtWKF61RG7G3xCdt1q7BgJWBlfzTt4XXVPDU84hU12g=="
+    )
+    encrypted_toggl_email: str = (
+        "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AGgr6DlKzWMviXYErFt/jDZAAAAdDByBgkqhkiG9w0BBwagZTBjAgEAMF4GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMkz5Qkeft9mTcAuMeAgEQgDG+FJn6ReZNe6KngPHgIvdJ9RBSGq/Nx2JTClE6k9aaeE4+0rBPKYgs0TKr6PsFBdkq"
+    )
+    encrypted_toggl_password: str = (
+        "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AE4eTN/RRoNeohMlPfTWPWHAAAAaDBmBgkqhkiG9w0BBwagWTBXAgEAMFIGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMqnQxOt64OqXCnPDdAgEQgCUkBJGegvNMFYl/+4PITgXcf7NE33uhUzYWRPcCORfVdXjFNxSS"
+    )
 
     _aws_clients: Optional[AWSClients] = None
 
