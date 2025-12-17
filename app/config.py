@@ -1,0 +1,97 @@
+import base64
+from typing import Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from appdevcommons.kms_encryptor import KMSEncryptor  # type: ignore[import-untyped]
+from app.dagger.aws_clients import AWSClients
+
+
+class Settings(BaseSettings):
+    """
+    Application settings.
+
+    AWS credentials are NOT stored here - they are resolved by boto3 from:
+    - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+    - IAM roles (when running on EC2/ECS/Lambda)
+    - AWS credentials file (~/.aws/credentials)
+    """
+
+    app_name: str = "Daylytics Backend"
+    debug: bool = False
+    database_url: str = "sqlite:///./daylytics.db"
+
+    # AWS KMS
+    kms_key_arn: str = (
+        "arn:aws:kms:us-west-2:792341830430:key/f46115bb-774a-4777-ab66-29903da24381"
+    )
+
+    # Toggl Track API (encrypted values)
+    encrypted_toggl_api_token: str = "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AEaxub94N2UG9z5FAZVO5DWAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMZ0EociGkIHEcd/LeAgEQgDsRzSYFs7mYrAFOAF5sbyRZxAqe+QZjlRGRfATwfbCIcAou6Xt1iwxZClYtH0CkOGCbaj+Nv/KIQ47sCQ=="
+    encrypted_toggl_email: str = "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AGgr6DlKzWMviXYErFt/jDZAAAAdDByBgkqhkiG9w0BBwagZTBjAgEAMF4GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMkz5Qkeft9mTcAuMeAgEQgDG+FJn6ReZNe6KngPHgIvdJ9RBSGq/Nx2JTClE6k9aaeE4+0rBPKYgs0TKr6PsFBdkq"
+    encrypted_toggl_password: str = "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AE4eTN/RRoNeohMlPfTWPWHAAAAaDBmBgkqhkiG9w0BBwagWTBXAgEAMFIGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMqnQxOt64OqXCnPDdAgEQgCUkBJGegvNMFYl/+4PITgXcf7NE33uhUzYWRPcCORfVdXjFNxSS"
+
+    _aws_clients: Optional[AWSClients] = None
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",  # Ignore extra fields from environment variables
+    )
+
+    def set_aws_clients(self, aws_clients: AWSClients) -> None:
+        """Set AWS clients instance for decryption."""
+        self._aws_clients = aws_clients
+
+    @staticmethod
+    def decrypt_value(
+        encrypted_value: str, aws_clients: AWSClients, kms_key_arn: str
+    ) -> str:
+        """
+        Decrypt a value using AWS KMS via KMSEncryptor from appdevcommons.
+
+        Args:
+            encrypted_value: Base64-encoded encrypted value (CiphertextBlob as string)
+            aws_clients: Initialized AWSClients instance
+            kms_key_arn: KMS key ARN to use for decryption
+
+        Returns:
+            Decrypted plaintext value as string
+        """
+        kms_client = aws_clients.get_kms_client()
+
+        # Decode the base64-encoded ciphertext string to bytes
+        ciphertext_blob = base64.b64decode(encrypted_value)
+
+        # Decrypt using KMSEncryptor
+        plaintext_bytes = KMSEncryptor.decrypt(
+            ciphertext=ciphertext_blob, kms_key_arn=kms_key_arn, kms_client=kms_client
+        )
+
+        # Decode bytes to string
+        return plaintext_bytes.decode("utf-8")
+
+    @property
+    def toggl_api_token(self) -> str:
+        """Decrypted Toggl API token."""
+        assert self._aws_clients is not None, "AWS clients must be initialized"
+        return self.decrypt_value(
+            self.encrypted_toggl_api_token, self._aws_clients, self.kms_key_arn
+        )
+
+    @property
+    def toggl_email(self) -> str:
+        """Decrypted Toggl email."""
+        assert self._aws_clients is not None, "AWS clients must be initialized"
+        return self.decrypt_value(
+            self.encrypted_toggl_email, self._aws_clients, self.kms_key_arn
+        )
+
+    @property
+    def toggl_password(self) -> str:
+        """Decrypted Toggl password."""
+        assert self._aws_clients is not None, "AWS clients must be initialized"
+        return self.decrypt_value(
+            self.encrypted_toggl_password, self._aws_clients, self.kms_key_arn
+        )
+
+
+settings = Settings()
