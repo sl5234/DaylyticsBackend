@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from enum import Enum
+from typing import List
+from app.models.toggl import TogglTimeEntry
 
 
 class ResponseMode(str, Enum):
@@ -12,6 +14,7 @@ class CreateAnalysisRequest(BaseModel):
     StartDate: str
     EndDate: str
     ResponseMode: ResponseMode
+    ActivityLogs: List[TogglTimeEntry]
 
 
 class OutputConfig(BaseModel):

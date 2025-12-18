@@ -9,4 +9,3 @@ class TogglTimeEntry(BaseModel):
     start: datetime
     stop: datetime
     duration: int  # seconds
-

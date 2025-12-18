@@ -48,7 +48,9 @@ def _get_time_entries(start_date: str, end_date: str) -> List[Dict[str, Any]]:
         return time_entries
 
 
-def get_activity_logs(start_date: str, end_date: str) -> List[TogglTimeEntry]:
+def get_toggl_track_activity_logs(
+    start_date: str, end_date: str
+) -> List[TogglTimeEntry]:
     """
     Get activity logs for a date range.
 
@@ -67,7 +69,4 @@ def get_activity_logs(start_date: str, end_date: str) -> List[TogglTimeEntry]:
     # Step 1: Get raw time entries from Toggl API
     time_entries = _get_time_entries(start_date, end_date)
 
-    # Step 2: Build structured activity logs
-    activity_logs = deserialize_time_entries(time_entries)
-
-    return activity_logs
+    return deserialize_time_entries(time_entries)

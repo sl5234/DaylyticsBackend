@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI
 from app.config import settings
-from app.routes import analysis
+from app.routes import analysis, conversation
 from app.dagger.aws_clients import AWSClients
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,7 @@ app = FastAPI(
 )
 
 # Include routers
+app.include_router(conversation.router)
 app.include_router(analysis.router)
 
 

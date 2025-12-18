@@ -6,85 +6,138 @@ Daylytics Backend is a Python FastAPI application that retrieves time tracking d
 
 ## Architecture
 
-The application follows a layered architecture pattern:
+The application follows an agent-based workflow architecture pattern:
 
 ```
 ┌─────────────────────────────────────────┐
-│         API Layer (Routes)             │
-│      POST /analysis                     │
+│      Localhost Doc Page                │
+│      User calls StartConversation       │
 └──────────────┬──────────────────────────┘
                │
 ┌──────────────▼──────────────────────────┐
-│      Service Layer (Orchestration)      │
-│      analysis_service.py                │
+│      Workflow Orchestrator             │
+│      Executes workflow steps            │
 └──────────────┬──────────────────────────┘
                │
 ┌──────────────▼──────────────────────────┐
-│         Toggl Service                   │
-│      toggl_service.py                   │
+│      Plan Agent                         │
+│      Determines strategy and workflow   │
+│      Returns Workflow with Steps        │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│      Execute Workflow Steps             │
+│      - Retriever API (get activity logs)│
+│      - Analyze API (analyzer agent)     │
+│      - Other steps as defined           │
 └─────────────────────────────────────────┘
 ```
 
-## Request Flow
+## User Flow
 
-### CreateAnalysis API Flow
+### StartConversation Flow
 
-1. **Request Received**
-   - Client sends `POST /analysis` with:
-     - `StartDate`: Start date for analysis (string)
-     - `EndDate`: End date for analysis (string)
-     - `ResponseMode`: Output format (TEXT | TABLE | METRIC)
-   - Route handler validates request using Pydantic models
+1. **User Initiates Conversation**
+   - User calls `StartConversation` endpoint from localhost documentation page
+   - Provides prompt, start date, and end date
 
-2. **Data Retrieval & Processing**
-   - `toggl_service` calls Toggl Track API to fetch time entries for the date range
-   - Data is processed according to the specified `ResponseMode`
-   - Analysis ID (AnalysisRid) is generated
+2. **Workflow Orchestration Begins**
+   - Workflow orchestrator receives the request
+   - Kicks off the workflow execution process
 
-3. **Response**
-   - Returns analysis results including:
-     - `AnalysisRid`: Unique identifier for the analysis
-     - `OutputConfig`: Configuration with S3 output path
-       - `S3OutputPath`: S3 path where analysis results are stored
+3. **Plan Agent Determines Strategy**
+   - Calls plan agent with user's prompt and date range
+   - Plan agent analyzes the request and determines the appropriate strategy
+   - Plan agent returns a `Workflow` object containing:
+     - `start`: Name of the first step to execute
+     - `graph`: List of `Step` objects, each with:
+       - `name`: Step identifier
+       - `description`: What the step does
+       - `tool`: Tool/API to call (e.g., "toggl_service.get_activity_logs", "analysis.create_analysis")
+       - `next`: Name of the subsequent step (or None for end)
+
+4. **Execute Workflow Steps**
+   - Workflow orchestrator executes each step in sequence
+   - Steps are executed based on the `next` field, starting from the `start` step
+   - Common steps include:
+     - **Retriever Step**: Calls Toggl Track API to fetch activity logs
+     - **Analyze Step**: Calls Analyze API which invokes analyzer agent
+       - Analyzer agent processes activity logs
+       - Produces artifacts based on the analysis:
+         - **TEXT**: Natural language summary or description
+         - **TABLE**: Structured tabular data
+         - **METRIC**: Quantitative metrics (e.g., ActivityMetric objects)
+     - **Other Steps**: Additional steps as defined by the plan agent
+
+5. **Response**
+   - Returns the final results from the workflow execution to the user
 
 ## Components
 
+### Agents (`app/agents/`)
+- **planner_agent.py**: Plan agent that determines strategy and returns a Workflow
+  - `handle_request()`: Takes user prompt and date range, returns Workflow with Steps
+- **analyzers/**: Analyzer agents that process activity logs
+  - **metric_generator.py**: Generates various activity metrics (sleep, workout, family, etc.)
+
 ### Routes (`app/routes/`)
+- **conversation.py**: Conversation endpoint handlers
+  - `POST /conversation/`: StartConversation endpoint - initiates workflow
 - **analysis.py**: HTTP endpoint handlers
-  - `POST /analysis`: Main analysis endpoint
+  - `POST /analysis`: Analyze API endpoint - called by workflow steps to invoke analyzer agent
 
 ### Services (`app/services/`)
 - **analysis_service.py**: Orchestrates the workflow
-- **toggl_service.py**: Toggl Track API integration
+- **toggl_service.py**: Toggl Track API integration (Retriever API)
+  - `get_activity_logs()`: Retrieves activity logs from Toggl API
 
 ### Models (`app/models/`)
+- **plan.py**: Workflow and step models
+  - `Workflow`: Contains start step name and graph of Steps
+  - `Step`: Individual workflow step with name, description, tool, and next step reference
 - **analysis.py**: Request/response models for API
-- **toggl.py**: Data models for Toggl API responses
+- **toggl.py**: Data models for Toggl API responses (`TogglTimeEntry`)
+- **activity.py**: Activity metric models (`ActivityMetric`, `Period`, `Unit`)
 
 ### Configuration (`app/config.py`)
 - Centralized settings via Pydantic Settings
 - Environment variable support via `.env` file
 - Configurable:
-  - Toggl API credentials
+  - Toggl API credentials (encrypted via KMS)
+  - AWS KMS key ARN
 
 ## Data Flow
 
 ```
-User Request
+User calls StartConversation (localhost doc page)
     ↓
-[POST /analysis] {StartDate, EndDate, ResponseMode}
+Workflow Orchestrator
     ↓
-analysis_service.create_analysis()
+Plan Agent (planner_agent.handle_request)
+    - Analyzes user prompt and date range
+    - Determines strategy
+    - Returns Workflow with Steps
     ↓
-┌─────────────────────────────────────┐
-│ toggl_service.get_daily_logs()     │ → Toggl Track API
-│    (date range)                     │
-│    Process by ResponseMode          │
-└─────────────────────────────────────┘
+Execute Workflow Steps (in sequence)
     ↓
-Generate AnalysisRid & S3OutputPath
+Step 1: Retriever API
+    - Calls toggl_service.get_activity_logs()
+    - Fetches activity logs from Toggl Track API
+    - Returns List[TogglTimeEntry]
     ↓
-Response: {AnalysisRid, OutputConfig: {S3OutputPath}}
+Step 2: Analyze API (almost definitely present)
+    - Calls POST /analysis endpoint
+    - Invokes analyzer agent
+    - Analyzer processes TogglTimeEntry objects
+    - Generates artifacts:
+      * TEXT: Natural language summaries
+      * TABLE: Structured data tables
+      * METRIC: ActivityMetric objects
+    ↓
+Additional Steps (as defined by plan agent)
+    ↓
+Response to User
+    - Returns final workflow results
 ```
 
 ## Key Design Decisions

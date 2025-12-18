@@ -38,6 +38,14 @@
 * No trailing whitespaces.
 * No unnecessary indentation after new line.
 
+### 10. **Unnecessary Documentation/Comments**
+❌ `# Sum up all durations (duration is in seconds)`
+❌ `total_duration_seconds = sum(entry.duration for entry in time_entries)`
+✅ `total_duration_seconds = sum(entry.duration for entry in time_entries)`
+* Avoid comments that simply restate what the code already clearly expresses
+* Code should be self-documenting through clear variable names and structure
+* Only add comments when they explain "why" not "what"
+
 ## Best Practices
 
 - **Pydantic models** for all request/response validation

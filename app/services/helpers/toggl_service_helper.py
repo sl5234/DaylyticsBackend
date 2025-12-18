@@ -89,7 +89,9 @@ def _deserialize_time_entry(time_entry: Dict[str, Any]) -> TogglTimeEntry:
     return toggl_entry
 
 
-def deserialize_time_entries(time_entries: List[Dict[str, Any]]) -> List[TogglTimeEntry]:
+def deserialize_time_entries(
+    time_entries: List[Dict[str, Any]]
+) -> List[TogglTimeEntry]:
     """
     Deserialize an array of time entry dictionaries into TogglTimeEntry objects.
 
