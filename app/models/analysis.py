@@ -11,16 +11,15 @@ class ResponseMode(str, Enum):
 
 
 class CreateAnalysisRequest(BaseModel):
-    StartDate: str
-    EndDate: str
-    ResponseMode: ResponseMode
-    ActivityLogs: List[TogglTimeEntry]
+    prompt: str
+    response_mode: ResponseMode
+    activity_logs: List[TogglTimeEntry]
 
 
 class OutputConfig(BaseModel):
-    S3OutputPath: str
+    s3_output_path: str
 
 
-class AnalysisResponse(BaseModel):
-    AnalysisRid: str
-    OutputConfig: OutputConfig
+class CreateAnalysisResponse(BaseModel):
+    analysis_rid: str
+    output_config: OutputConfig

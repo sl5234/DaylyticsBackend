@@ -75,7 +75,6 @@ The application follows an agent-based workflow architecture pattern:
 ### Services (`app/services/`)
 - **toggl_service.py**: Toggl Track API integration (Retriever)
   - `get_toggl_track_activity_logs()`: Retrieves activity logs from Toggl API
-- **workflow_orchestrator.py**: Executes workflow steps in sequence
 
 ### Models (`app/models/`)
 - **plan.py**: Workflow and step models

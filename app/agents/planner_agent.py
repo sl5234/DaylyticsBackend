@@ -16,23 +16,17 @@ def handle_request(prompt: str) -> Workflow:
     """
     logger.info(f"Planner agent processing request: {prompt}")
 
-    # TODO: As of Dec. 2025, we hardcode a default plan.  In the future, we want to
+    # TODO: As of Dec. 2025, this is unused.  In the future, we want to
     # 1) Use LLM to determine plan and 2) use Amazon State Language.
     # See: https://states-language.net/spec.html#states-fields
     workflow = Workflow(
-        start="GetTogglTrackActivityLogs",
+        start="Foo",
         graph=[
             Step(
-                step_name="GetTogglTrackActivityLogs",
-                step_description="Get activity logs from Toggl Track API",
-                tool_name="get_toggl_track_activity_logs",
-                next_step_name="AnalyzeActivityLogs",
-            ),
-            Step(
-                step_name="AnalyzeActivityLogs",
-                step_description="Create analysis of activity logs",
-                tool_name="create_analysis",
-                next_step_name='END',
+                step_name="Foo",
+                step_description="Foo",
+                tool_name="Foo",
+                next_step_name="END",
             ),
         ],
     )

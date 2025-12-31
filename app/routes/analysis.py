@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from appdevcommons.unique_id import UniqueIdGenerator  # type: ignore[import-untyped]
 from app.models.analysis import (
     CreateAnalysisRequest,
-    AnalysisResponse,
+    CreateAnalysisResponse,
     OutputConfig,
     ResponseMode,
 )
@@ -16,46 +16,31 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
-@router.post("/", response_model=AnalysisResponse)
-def create_analysis(request: CreateAnalysisRequest) -> AnalysisResponse:  # type: ignore[no-redef]  # noqa: F811  # noqa: F811
-    """
-    Create analysis for a date range.
+@router.post("/", response_model=CreateAnalysisResponse)
+def create_analysis(request: CreateAnalysisRequest) -> CreateAnalysisResponse:  # type: ignore[no-redef]  # noqa: F811  # noqa: F811
+    logger.info(f"Creating analysis with mode: {request.response_mode}")
 
-    Processes activity logs according to the ResponseMode:
-    - METRIC: Generates activity metrics using metric generators
-    - TABLE: Generates table representation
-    - TEXT: Generates text summary
-    """
-    logger.info(f"Creating analysis with mode: {request.ResponseMode}")
-
-    # Process based on response mode
-    if request.ResponseMode == ResponseMode.METRIC:
+    if request.response_mode == ResponseMode.METRIC:
         logger.info("Generating metrics from activity logs")
-        all_metrics = generate_all_metrics(request.ActivityLogs)
+        all_metrics = generate_all_metrics(request.prompt, request.activity_logs)
         logger.info(f"Generated {len(all_metrics)} metrics")
 
-    elif request.ResponseMode == ResponseMode.TABLE:
+    elif request.response_mode == ResponseMode.TABLE:
         logger.info("Generating table from activity logs")
-        table = generate_table(request.ActivityLogs)
+        table = generate_table(request.activity_logs)
         logger.info(f"Generated table with {len(table)} rows")
 
-    elif request.ResponseMode == ResponseMode.TEXT:
+    elif request.response_mode == ResponseMode.TEXT:
         logger.info("Generating text summary from activity logs")
-        summary = generate_summary(request.ActivityLogs)
+        summary = generate_summary(request.activity_logs)
         logger.info(f"Generated summary with {len(summary)} characters")
 
     id_generator = UniqueIdGenerator()
     analysis_rid = id_generator.generate_id()
 
-    # Generate S3 output path
     s3_output_path = f"s3://daylytics/analysis/{analysis_rid}/output"
 
-    result = {
-        "AnalysisRid": analysis_rid,
-        "OutputConfig": {"S3OutputPath": s3_output_path},
-    }
-
-    return AnalysisResponse(
-        AnalysisRid=str(result["AnalysisRid"]),  # type: ignore[arg-type]
-        OutputConfig=OutputConfig(**result["OutputConfig"]),  # type: ignore[arg-type]
+    return CreateAnalysisResponse(
+        analysis_rid=str(analysis_rid),  # type: ignore[arg-type]
+        output_config=OutputConfig(s3_output_path=s3_output_path),
     )
