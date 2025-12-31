@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 
 
 class Step(BaseModel):
@@ -10,10 +10,10 @@ class Step(BaseModel):
     description of what the step does, and reference to the next step.
     """
 
-    name: str
-    description: str
-    tool: str
-    next: Optional[str] = None  # the name of the subsequent Step
+    step_name: str
+    step_description: str
+    tool_name: str
+    next_step_name: str  # the name of the subsequent Step
 
 
 class Workflow(BaseModel):
@@ -26,3 +26,15 @@ class Workflow(BaseModel):
 
     start: str  # the name of the first Step
     graph: List[Step]
+
+
+class CreatePlanRequest(BaseModel):
+    """Request model for CreatePlan endpoint."""
+
+    prompt: str
+
+
+class CreatePlanResponse(BaseModel):
+    """Response model for CreatePlan endpoint."""
+
+    workflow: Workflow

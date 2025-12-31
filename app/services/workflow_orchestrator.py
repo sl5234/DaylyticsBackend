@@ -28,28 +28,28 @@ def execute_workflow(
     logger.info(f"Executing workflow starting with step: {workflow.start}")
 
     # Create a map of step names to steps for easy lookup
-    step_map = {step.name: step for step in workflow.graph}
+    step_map = {step.step_name: step for step in workflow.graph}
 
     # Track results from each step
     step_results: Dict[str, Any] = {}
-    current_step_name: Optional[str] = workflow.start
+    current_step_name: str = workflow.start
 
     # Execute steps in sequence
-    while current_step_name is not None:
+    while current_step_name is not 'END':
         if current_step_name not in step_map:
             logger.error(f"Step '{current_step_name}' not found in workflow graph")
             break
 
         step = step_map[current_step_name]
-        logger.info(f"Executing step: {step.name} - {step.description}")
+        logger.info(f"Executing step: {step.step_name} - {step.step_description}")
 
         # Execute the step's tool
         result = _execute_step_tool(step, start_date, end_date, step_results)
-        step_results[step.name] = result
+        step_results[step.step_name] = result
 
         # Move to next step
-        current_step_name = step.next
-        logger.info(f"Step {step.name} completed, moving to: {current_step_name}")
+        current_step_name = step.next_step_name
+        logger.info(f"Step {step.step_name} completed, moving to: {current_step_name}")
 
     logger.info(f"Workflow execution completed. Executed {len(step_results)} steps")
     return step_results
@@ -70,7 +70,7 @@ def _execute_step_tool(
     Returns:
         Result from executing the step's tool
     """
-    tool = step.tool
+    tool = step.tool_name
 
     if tool == "get_toggl_track_activity_logs":
         logger.info("Calling toggl_service.get_toggl_track_activity_logs")
@@ -80,7 +80,9 @@ def _execute_step_tool(
         logger.info("Calling analysis.create_analysis")
         activity_logs = previous_results.get("GetTogglTrackActivityLogs")
         if activity_logs is None:
-            raise ValueError("Activity logs not found from previous step 'GetTogglTrackActivityLogs'")
+            raise ValueError(
+                "Activity logs not found from previous step 'GetTogglTrackActivityLogs'"
+            )
         analysis_request = CreateAnalysisRequest(
             StartDate=start_date,
             EndDate=end_date,

@@ -46,6 +46,12 @@
 * Code should be self-documenting through clear variable names and structure
 * Only add comments when they explain "why" not "what"
 
+### 11. **Using PascalCase for Model Fields**
+❌ `class CreatePlanRequest(BaseModel): Prompt: str; StartDate: str`
+✅ `class CreatePlanRequest(BaseModel): prompt: str; start_date: str`
+* Use snake_case for all field names in Pydantic models (Python convention)
+* This project uses Python, so follow Python naming conventions
+
 ## Best Practices
 
 - **Pydantic models** for all request/response validation

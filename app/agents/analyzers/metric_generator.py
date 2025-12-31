@@ -1,6 +1,6 @@
 from typing import List, Dict
 from collections import defaultdict
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time
 from app.models.toggl import TogglTimeEntry
 from app.models.activity import ActivityMetric, Period, Unit
 
@@ -274,7 +274,7 @@ def _generate_unrecorded_time_metric(
         ActivityMetric object with unrecorded time in minutes
     """
     today = date.today()
-    
+
     if time_entries and time_entries[0].start.tzinfo is not None:
         entry_tz = time_entries[0].start.tzinfo
         day_start = datetime.combine(today, time.min, tzinfo=entry_tz)
@@ -427,6 +427,7 @@ def generate_all_metrics(time_entries: List[TogglTimeEntry]) -> List[ActivityMet
         categories = _categorize_time_entry(entry)
         for category in categories:
             categorized_entries[category].append(entry)
+    print(categorized_entries)
 
     all_metrics: List[ActivityMetric] = []
 

@@ -68,5 +68,6 @@ def get_toggl_track_activity_logs(
     """
     # Step 1: Get raw time entries from Toggl API
     time_entries = _get_time_entries(start_date, end_date)
+    print(time_entries)
 
     return deserialize_time_entries(time_entries)
