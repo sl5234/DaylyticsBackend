@@ -52,6 +52,13 @@
 * Use snake_case for all field names in Pydantic models (Python convention)
 * This project uses Python, so follow Python naming conventions
 
+### 12. **Default Parameters Unless Necessary**
+❌ `def process(data, limit=100): ...`
+✅ `def process(data, limit): ...`
+* Bias towards not using default parameters unless specifically necessary
+* Default parameters can hide dependencies and make function behavior less explicit
+* Only use defaults when they represent a true sensible default that applies in most cases
+
 ## Best Practices
 
 - **Pydantic models** for all request/response validation

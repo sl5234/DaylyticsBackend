@@ -116,6 +116,9 @@ Response
     - Returns final analysis results
 ```
 
+The orchestrator of this flow will be an agent (not implemented as of Dec. 2025).  For example.
+it may be claude, kiro-cli, or OpenAI Responses API.
+
 ## Key Design Decisions
 
 1. **Pydantic Models**: Type-safe request/response validation and data structures
