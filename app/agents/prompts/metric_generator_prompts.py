@@ -31,6 +31,9 @@ ACTIVITY_LOGS:
 RESPONSE_FORMAT:
 {response_format}
 
+RULES:
+* If activity logs are not provided, return an empty list.
+
 Please analyze the activity logs and generate the requested metrics based on the primary objective. Return the response in the specified format."""
 
     return prompt

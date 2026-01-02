@@ -47,6 +47,7 @@ def generate_all_metrics(
     )
 
     output_text = response["output_text"]
+    logger.info(f"Received raw response from LLM: {output_text}")
     logger.info(f"Received response from LLM: {len(output_text)} characters")
 
     metrics = _parse_llm_response(output_text)

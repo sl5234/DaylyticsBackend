@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI
 from app.config import settings
-from app.routes import analysis, plan
+from app.routes import analysis, plan, workflow
 from app.dagger.aws_clients import AWSClients
 
 logging.basicConfig(
@@ -68,6 +68,7 @@ app = FastAPI(
 # Include routers
 app.include_router(plan.router)
 app.include_router(analysis.router)
+app.include_router(workflow.router)
 
 
 @app.get("/")
