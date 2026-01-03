@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+from personal_prompt_temporary import PERSONAL_PROMPT_TEMPORARY
 from app.services.toggl_service import get_toggl_track_activity_logs
 from app.models.analysis import (
     CreateAnalysisRequest,
@@ -16,7 +17,6 @@ router = APIRouter(prefix="/workflow", tags=["workflow"])
 class StartWorkflowRequest(BaseModel):
     """Request model for StartWorkflow endpoint."""
 
-    user_prompt: str
     start_date: str
     end_date: str
 
@@ -43,33 +43,33 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
     2. Creates analysis from the retrieved logs
 
     Args:
-        request: StartWorkflowRequest containing user_prompt, start_date, and end_date
+        request: StartWorkflowRequest containing start_date and end_date
 
     Returns:
         StartWorkflowResponse containing analysis results
     """
-    logger.info(
-        f"Starting workflow for prompt: {request.user_prompt} "
-        f"from {request.start_date} to {request.end_date}"
-    )
+    logger.info(f"Starting workflow from {request.start_date} to {request.end_date}")
 
     # Step 1: Retrieve activity logs
     logger.info("Step 1: Retrieving activity logs from Toggl Track...")
     activity_logs = get_toggl_track_activity_logs(request.start_date, request.end_date)
     logger.info(f"Retrieved {len(activity_logs)} activity logs")
 
-    # Step 2: Create analysis
-    logger.info("Step 2: Creating analysis...")
-    analysis_request = CreateAnalysisRequest(
-        prompt=request.user_prompt,
-        response_mode=ResponseMode.METRIC,
-        activity_logs=activity_logs,
+    # Step 2: Create analysis for each prompt
+    logger.info(
+        f"Step 2: Creating analysis for {len(PERSONAL_PROMPT_TEMPORARY)} metrics..."
     )
+    analysis_responses = []
+    for i, prompt in enumerate(PERSONAL_PROMPT_TEMPORARY, 1):
+        logger.info(f"Processing metric {i}/{len(PERSONAL_PROMPT_TEMPORARY)}")
+        analysis_request = CreateAnalysisRequest(
+            prompt=prompt,
+            response_mode=ResponseMode.METRIC,
+            activity_logs=activity_logs,
+        )
+        analysis_response = create_analysis(analysis_request)
+        analysis_responses.append(analysis_response)
+        logger.info(f"Analysis {i} created with RID: {analysis_response.analysis_rid}")
 
-    analysis_response = create_analysis(analysis_request)
-    logger.info(f"Analysis created with RID: {analysis_response.analysis_rid}")
-
-    return StartWorkflowResponse(
-        analysis_rid=analysis_response.analysis_rid,
-        output_config=analysis_response.output_config.model_dump(),
-    )
+    # Return any dummy value.
+    return StartWorkflowResponse(analysis_rid="foo", output_config={})

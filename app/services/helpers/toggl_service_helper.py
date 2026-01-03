@@ -1,6 +1,8 @@
 from base64 import b64encode
 from typing import Dict, Any, List
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from app.config import settings
 from app.models.toggl import TogglTimeEntry
 
@@ -68,23 +70,52 @@ def _deserialize_time_entry(time_entry: Dict[str, Any]) -> TogglTimeEntry:
     Deserialize a single time entry dictionary into a TogglTimeEntry object.
 
     Converts a raw time entry dictionary from Toggl API into a validated
-    TogglTimeEntry Pydantic model. Unsupported fields are ignored.
+    TogglTimeEntry Pydantic model. UTC timestamps from Toggl API are converted
+    to Seattle time (America/Los_Angeles timezone). Unsupported fields are ignored.
 
     Args:
         time_entry: Raw time entry dictionary from Toggl API
 
     Returns:
-        TogglTimeEntry object
+        TogglTimeEntry object with start and stop times in Seattle timezone
 
     Raises:
         ValueError: If required fields are missing
     """
     _validate_raw_time_entry(time_entry)
 
-    # Use Pydantic's model_validate to parse directly, ignoring unsupported fields
-    toggl_entry = TogglTimeEntry.model_validate(time_entry)
+    seattle_tz = ZoneInfo("America/Los_Angeles")
+    utc_tz = ZoneInfo("UTC")
+
+    start_str = str(time_entry["start"])
+    stop_str = str(time_entry["stop"])
+
+    start_normalized = start_str.replace("Z", "+00:00")
+    start_parsed = datetime.fromisoformat(start_normalized)
+    if start_parsed.tzinfo is None:
+        start_utc = start_parsed.replace(tzinfo=utc_tz)
+    else:
+        start_utc = start_parsed.astimezone(utc_tz)
+
+    stop_normalized = stop_str.replace("Z", "+00:00")
+    stop_parsed = datetime.fromisoformat(stop_normalized)
+    if stop_parsed.tzinfo is None:
+        stop_utc = stop_parsed.replace(tzinfo=utc_tz)
+    else:
+        stop_utc = stop_parsed.astimezone(utc_tz)
+
+    start_seattle = start_utc.astimezone(seattle_tz)
+    stop_seattle = stop_utc.astimezone(seattle_tz)
+
+    time_entry_with_seattle_tz = {
+        **time_entry,
+        "start": start_seattle,
+        "stop": stop_seattle,
+    }
+
+    toggl_entry = TogglTimeEntry.model_validate(time_entry_with_seattle_tz)
     logger.debug(
-        f"Successfully deserialized time entry {time_entry.get('id', 'unknown')} into TogglTimeEntry"
+        f"Successfully deserialized time entry {time_entry.get('id', 'unknown')} into TogglTimeEntry with Seattle timezone"
     )
     return toggl_entry
 

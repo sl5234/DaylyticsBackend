@@ -42,7 +42,7 @@ def generate_all_metrics(
         f"Calling OpenAI Responses API to generate metrics with prompt: {prompt}"
     )
     response = responses(
-        model="gpt-4.1-nano",
+        model="gpt-5-nano",
         input_text=prompt,
     )
 
@@ -70,6 +70,7 @@ def _build_response_format() -> str:
 - unit: One of "int", "mins", "hrs", "days"
 - value: Numeric value (float)
 - title: String title for the metric
+- reason: String reason for the metric metadata
 
 Example format:
 [
@@ -78,7 +79,8 @@ Example format:
     "period": "1day",
     "unit": "mins",
     "value": 120.5,
-    "title": "Workout Time"
+    "title": "Workout Time",
+    "reason": "There were 2 workout activity logs with duration 60 mins and 60.5 mins"
   }
 ]"""
 

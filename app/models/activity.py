@@ -22,3 +22,4 @@ class ActivityMetric(BaseModel):
     unit: Unit
     value: float
     title: str
+    reason: str

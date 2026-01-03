@@ -56,4 +56,5 @@ logs/
 .coverage
 htmlcov/
 
-
+# Temporary / Personal files
+personal_prompt_temporary.py

@@ -20,21 +20,41 @@ def build_metric_generator_prompt(
     """
     activity_logs_str = _format_activity_logs(activity_logs)
 
-    prompt = f"""You are a metric generator agent that analyzes time tracking data and generates activity metrics.
+    prompt = f"""
+You are a metric generator agent that analyzes time tracking data and generates activity metrics. Please analyze 
+the activity logs and generate the requested metrics based on the primary objective. Return the response in the 
+specified format.
 
-PRIMARY_OBJECTIVE:
+
+## PRIMARY OBJECTIVE
 {primary_objective}
 
-ACTIVITY_LOGS:
+
+## INPUT
+You will receive a list of activity logs. Each activity log has the following fields:
+- description: Description of the activity log in string.
+- start: start time of the activity log in ISO-8601 timestamp (Seattle time, America/Los_Angeles timezone)
+- stop: end time of the activity log in ISO-8601 timestamp (Seattle time, America/Los_Angeles timezone)
+- duration: duration of the activity log in seconds
+- tags: list of tags.  Each tag is a category of the activity log in string.
+
+### ACTIVITY_LOGS
 {activity_logs_str}
 
-RESPONSE_FORMAT:
+
+## OUTPUT
+
+### OUTPUT FORMAT
 {response_format}
 
-RULES:
-* If activity logs are not provided, return an empty list.
 
-Please analyze the activity logs and generate the requested metrics based on the primary objective. Return the response in the specified format."""
+## RULES
+* If activity logs are not provided, return an empty list.
+* If activity logs do not contain any information that can be used to generate a particular requested metrics, return an empty metric object.
+* Do NOT add any additional text to the response.
+* Do NOT add any explanation to the response.
+* Stick to primary objective. Do NOT add any output metric that are not requested.
+"""
 
     return prompt
 
