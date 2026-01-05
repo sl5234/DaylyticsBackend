@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from enum import Enum
-from typing import List
+from typing import List, Any, Optional
 from app.models.toggl import TogglTimeEntry
 
 
@@ -23,3 +23,4 @@ class OutputConfig(BaseModel):
 class CreateAnalysisResponse(BaseModel):
     analysis_rid: str
     output_config: OutputConfig
+    raw_output: Optional[Any] = None
