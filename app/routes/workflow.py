@@ -5,7 +5,7 @@ from typing import Dict, List
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from personal_prompt_temporary import PERSONAL_PROMPT_TEMPORARY
+from personal_prompt_temporary import get_personal_prompt_temporary
 from app.services.toggl_service import get_toggl_track_activity_logs
 from app.models.analysis import (
     CreateAnalysisRequest,
@@ -141,12 +141,11 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
     logger.info(f"Retrieved {len(activity_logs)} activity logs")
 
     # Step 2: Create analysis for each prompt
-    logger.info(
-        f"Step 2: Creating analysis for {len(PERSONAL_PROMPT_TEMPORARY)} metrics..."
-    )
+    personal_prompts = get_personal_prompt_temporary(request.start_date)
+    logger.info(f"Step 2: Creating analysis for {len(personal_prompts)} metrics...")
     analysis_responses = []
-    for i, prompt in enumerate(PERSONAL_PROMPT_TEMPORARY, 1):
-        logger.info(f"Processing metric {i}/{len(PERSONAL_PROMPT_TEMPORARY)}")
+    for i, prompt in enumerate(personal_prompts, 1):
+        logger.info(f"Processing metric {i}/{len(personal_prompts)}")
         analysis_request = CreateAnalysisRequest(
             prompt=prompt,
             response_mode=ResponseMode.METRIC,
