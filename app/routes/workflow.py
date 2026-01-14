@@ -2,6 +2,8 @@ import csv
 import logging
 from pathlib import Path
 from typing import Dict, List
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -12,7 +14,9 @@ from app.models.analysis import (
     CreateAnalysisResponse,
     ResponseMode,
 )
+from app.models.toggl import TogglTimeEntry
 from app.routes.analysis import create_analysis
+from app.utils.general_util import get_next_date
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workflow", tags=["workflow"])
@@ -99,6 +103,102 @@ def _write_metrics_to_csv(
     )
 
 
+def _filter_activity_log_with_bed_time_tag(
+    activity_logs: List[TogglTimeEntry],
+) -> List[TogglTimeEntry]:
+    """
+    Filter activity logs that have "bed_time" or "sleep" tags.
+
+    Args:
+        activity_logs: List of TogglTimeEntry objects
+
+    Returns:
+        List of TogglTimeEntry objects with bed_time or sleep tags
+    """
+    filtered_logs = []
+    for log in activity_logs:
+        has_bed_time_tag = "bed_time" in log.tags
+        has_sleep_tag = "sleep" in log.tags
+        if has_bed_time_tag or has_sleep_tag:
+            filtered_logs.append(log)
+    return filtered_logs
+
+
+def _filter_activity_log_started_between_00_00_12_00(
+    activity_logs: List[TogglTimeEntry], next_date: str
+) -> List[TogglTimeEntry]:
+    """
+    Filter bed_time or sleep activity logs that occurred between 00:00 and 12:00 (noon) of next_date.
+
+    Args:
+        activity_logs: List of TogglTimeEntry objects (should already be filtered to only include bed_time or sleep logs)
+        next_date: Next date as ISO-8601 datetime string (e.g., 2026-01-01T00:00:00-08:00)
+
+    Returns:
+        List of filtered TogglTimeEntry objects with bed_time or sleep tags that start between 00:00-12:00 of next_date
+    """
+    filtered_logs = []
+    seattle_tz = ZoneInfo("America/Los_Angeles")
+    utc_tz = ZoneInfo("UTC")
+
+    next_date_normalized = next_date.replace("Z", "+00:00")
+    next_date_parsed = datetime.fromisoformat(next_date_normalized)
+    if next_date_parsed.tzinfo is None:
+        next_date_utc = next_date_parsed.replace(tzinfo=utc_tz)
+    else:
+        next_date_utc = next_date_parsed.astimezone(utc_tz)
+    next_date_seattle = next_date_utc.astimezone(seattle_tz)
+    next_date_str = next_date_seattle.strftime("%Y-%m-%d")
+
+    next_date_start = next_date_seattle.replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    next_date_noon = next_date_seattle.replace(
+        hour=12, minute=0, second=0, microsecond=0
+    )
+
+    for log in activity_logs:
+        log_start_utc = log.start
+        if log_start_utc.tzinfo is None:
+            log_start_utc = log_start_utc.replace(tzinfo=utc_tz)
+        else:
+            log_start_utc = log_start_utc.astimezone(utc_tz)
+        log_start_seattle = log_start_utc.astimezone(seattle_tz)
+        log_start_date_str = log_start_seattle.strftime("%Y-%m-%d")
+
+        if log_start_date_str == next_date_str:
+            if next_date_start <= log_start_seattle < next_date_noon:
+                filtered_logs.append(log)
+
+    return filtered_logs
+
+
+def _get_bed_time_activity_logs_from_next_date(start_date: str) -> List[TogglTimeEntry]:
+    """
+    Bed time activity log for current date is defined as follows:
+    1. The activity log occurred between 12:00 (noon) of the current date -12:00 (noon) of the next date.
+    2. The activity log has tag "bed_time" or "sleep".
+
+    Get bed_time activity logs from the next date that occurred between 00:00-12:00 (noon).
+
+    Args:
+        start_date: Start date as ISO-8601 datetime string (e.g., 2026-01-01T00:00:00-08:00)
+
+    Returns:
+        List of TogglTimeEntry objects with bed_time or sleep tags from next date (00:00-12:00)
+    """
+    next_date = get_next_date(start_date)
+    next_date_end = get_next_date(next_date)
+
+    activity_logs = get_toggl_track_activity_logs(next_date, next_date_end)
+    bed_time_logs = _filter_activity_log_with_bed_time_tag(activity_logs)
+    filtered_logs = _filter_activity_log_started_between_00_00_12_00(
+        bed_time_logs, next_date
+    )
+
+    return filtered_logs
+
+
 class StartWorkflowRequest(BaseModel):
     """Request model for StartWorkflow endpoint."""
 
@@ -139,6 +239,16 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
     logger.info("Step 1: Retrieving activity logs from Toggl Track...")
     activity_logs = get_toggl_track_activity_logs(request.start_date, request.end_date)
     logger.info(f"Retrieved {len(activity_logs)} activity logs")
+
+    # Step 1.5: Get bed_time activity logs from next date (00:00-12:00)
+    logger.info("Step 1.5: Retrieving bed_time activity logs from next date...")
+    next_date_bed_time_logs = _get_bed_time_activity_logs_from_next_date(
+        request.start_date
+    )
+    logger.info(
+        f"Retrieved {len(next_date_bed_time_logs)} bed_time logs from next date"
+    )
+    activity_logs.extend(next_date_bed_time_logs)
 
     # Step 2: Create analysis for each prompt
     personal_prompts = get_personal_prompt_temporary(request.start_date)

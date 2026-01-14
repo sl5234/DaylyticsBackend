@@ -1,31 +1,16 @@
 from typing import Dict, Any, List
 import logging
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from app.models.toggl import TogglTimeEntry
 from app.services.helpers.toggl_service_helper import (
     get_toggl_cred,
     deserialize_time_entries,
 )
+from app.utils.general_util import get_previous_date
 
 logger = logging.getLogger(__name__)
-
-
-def _get_previous_date(date: str) -> str:
-    """
-    Get the previous day's date in the same format.
-
-    Args:
-        date: ISO-8601 datetime string (e.g., 2026-01-01T00:00:00-08:00)
-
-    Returns:
-        Previous day's date in the same ISO-8601 format
-    """
-    date_normalized = date.replace("Z", "+00:00")
-    date_parsed = datetime.fromisoformat(date_normalized)
-    previous_date_obj = date_parsed - timedelta(days=1)
-    return previous_date_obj.isoformat()
 
 
 def _filter_entries_ending_on_date(
@@ -135,7 +120,7 @@ def get_toggl_track_activity_logs(
         httpx.HTTPStatusError: If the API request fails (403, 500, etc.)
     """
     # Step 1: Get previous day's date
-    previous_date = _get_previous_date(start_date)
+    previous_date = get_previous_date(start_date)
 
     # Step 2: Get time entries from previous day to start_date
     previous_day_entries = _get_time_entries(previous_date, start_date)
