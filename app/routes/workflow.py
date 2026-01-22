@@ -1,11 +1,12 @@
 import csv
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from personal_prompt_temporary import get_personal_prompt_temporary
 from app.services.toggl_service import get_toggl_track_activity_logs
@@ -173,30 +174,117 @@ def _filter_activity_log_started_between_00_00_12_00(
     return filtered_logs
 
 
-def _get_bed_time_activity_logs_from_next_date(start_date: str) -> List[TogglTimeEntry]:
+def _get_bed_time_logs_for_next_date(
+    activity_logs: List[TogglTimeEntry], next_date: str
+) -> List[TogglTimeEntry]:
     """
-    Bed time activity log for current date is defined as follows:
-    1. The activity log occurred between 12:00 (noon) of the current date -12:00 (noon) of the next date.
-    2. The activity log has tag "bed_time" or "sleep".
+    Get bed_time activity logs from pre-fetched data for a specific next date (00:00-12:00).
 
-    Get bed_time activity logs from the next date that occurred between 00:00-12:00 (noon).
+    Bed time activity log for a date is defined as:
+    1. Has tag "bed_time" or "sleep"
+    2. Started between 00:00 and 12:00 (noon) of the next date
 
     Args:
-        start_date: Start date as ISO-8601 datetime string (e.g., 2026-01-01T00:00:00-08:00)
+        activity_logs: List of all pre-fetched TogglTimeEntry objects
+        next_date: The next date as ISO-8601 datetime string
 
     Returns:
-        List of TogglTimeEntry objects with bed_time or sleep tags from next date (00:00-12:00)
+        List of TogglTimeEntry objects with bed_time/sleep tags from next date (00:00-12:00)
     """
-    next_date = get_next_date(start_date)
-    next_date_end = get_next_date(next_date)
-
-    activity_logs = get_toggl_track_activity_logs(next_date, next_date_end)
     bed_time_logs = _filter_activity_log_with_bed_time_tag(activity_logs)
     filtered_logs = _filter_activity_log_started_between_00_00_12_00(
         bed_time_logs, next_date
     )
+    return filtered_logs
+
+
+def _filter_activity_logs_for_date(
+    activity_logs: List[TogglTimeEntry], target_date: str
+) -> List[TogglTimeEntry]:
+    """
+    Filter activity logs that belong to a specific date.
+
+    A log belongs to the target date if:
+    1. It started on the target date, OR
+    2. It started on the previous date and ended on the target date
+
+    Args:
+        activity_logs: List of TogglTimeEntry objects
+        target_date: Target date as ISO-8601 datetime string
+
+    Returns:
+        List of TogglTimeEntry objects that belong to the target date
+    """
+    filtered_logs = []
+    seattle_tz = ZoneInfo("America/Los_Angeles")
+    utc_tz = ZoneInfo("UTC")
+
+    # Parse target date and get date string in Seattle timezone
+    target_date_normalized = target_date.replace("Z", "+00:00")
+    target_dt = datetime.fromisoformat(target_date_normalized)
+    if target_dt.tzinfo is None:
+        target_dt = target_dt.replace(tzinfo=utc_tz)
+    target_dt_seattle = target_dt.astimezone(seattle_tz)
+    target_date_str = target_dt_seattle.strftime("%Y-%m-%d")
+
+    # Calculate previous date string
+    prev_dt_seattle = target_dt_seattle - timedelta(days=1)
+    prev_date_str = prev_dt_seattle.strftime("%Y-%m-%d")
+
+    for log in activity_logs:
+        # Get log start date in Seattle timezone
+        log_start_utc = log.start
+        if log_start_utc.tzinfo is None:
+            log_start_utc = log_start_utc.replace(tzinfo=utc_tz)
+        else:
+            log_start_utc = log_start_utc.astimezone(utc_tz)
+        log_start_seattle = log_start_utc.astimezone(seattle_tz)
+        log_start_date_str = log_start_seattle.strftime("%Y-%m-%d")
+
+        # Case 1: Log started on target date
+        if log_start_date_str == target_date_str:
+            filtered_logs.append(log)
+            continue
+
+        # Case 2: Log started on previous date and ended on target date
+        if log_start_date_str == prev_date_str and log.stop is not None:
+            log_end_utc = log.stop
+            if log_end_utc.tzinfo is None:
+                log_end_utc = log_end_utc.replace(tzinfo=utc_tz)
+            else:
+                log_end_utc = log_end_utc.astimezone(utc_tz)
+            log_end_seattle = log_end_utc.astimezone(seattle_tz)
+            log_end_date_str = log_end_seattle.strftime("%Y-%m-%d")
+
+            if log_end_date_str == target_date_str:
+                filtered_logs.append(log)
 
     return filtered_logs
+
+
+def _get_dates_in_range(start_date: str, end_date: str) -> List[str]:
+    """
+    Generate a list of dates from start_date to end_date (inclusive).
+
+    Args:
+        start_date: Start date as ISO-8601 datetime string
+        end_date: End date as ISO-8601 datetime string
+
+    Returns:
+        List of ISO-8601 datetime strings for each day in the range
+    """
+    dates = []
+    current_date = start_date
+    end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+
+    while True:
+        current_dt = datetime.fromisoformat(current_date.replace("Z", "+00:00"))
+        if current_dt > end_dt:
+            break
+        dates.append(current_date)
+        current_date = get_next_date(current_date)
+
+    return dates
 
 
 class StartWorkflowRequest(BaseModel):
@@ -235,37 +323,69 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
     """
     logger.info(f"Starting workflow from {request.start_date} to {request.end_date}")
 
-    # Step 1: Retrieve activity logs
-    logger.info("Step 1: Retrieving activity logs from Toggl Track...")
-    activity_logs = get_toggl_track_activity_logs(request.start_date, request.end_date)
-    logger.info(f"Retrieved {len(activity_logs)} activity logs")
-
-    # Step 1.5: Get bed_time activity logs from next date (00:00-12:00)
-    logger.info("Step 1.5: Retrieving bed_time activity logs from next date...")
-    next_date_bed_time_logs = _get_bed_time_activity_logs_from_next_date(
-        request.start_date
-    )
-    logger.info(
-        f"Retrieved {len(next_date_bed_time_logs)} bed_time logs from next date"
-    )
-    activity_logs.extend(next_date_bed_time_logs)
-
-    # Step 2: Create analysis for each prompt
-    personal_prompts = get_personal_prompt_temporary(request.start_date)
-    logger.info(f"Step 2: Creating analysis for {len(personal_prompts)} metrics...")
-    analysis_responses = []
-    for i, prompt in enumerate(personal_prompts, 1):
-        logger.info(f"Processing metric {i}/{len(personal_prompts)}")
-        analysis_request = CreateAnalysisRequest(
-            prompt=prompt,
-            response_mode=ResponseMode.METRIC,
-            activity_logs=activity_logs,
+    # Validate date range (max 5 days)
+    start_dt = datetime.fromisoformat(request.start_date.replace("Z", "+00:00"))
+    end_dt = datetime.fromisoformat(request.end_date.replace("Z", "+00:00"))
+    date_diff = (end_dt - start_dt).days
+    if date_diff > 20:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Date range exceeds maximum of 20 days. Got {date_diff} days.",
         )
-        analysis_response = create_analysis(analysis_request)
-        analysis_responses.append(analysis_response)
-        logger.info(f"Analysis {i} created with RID: {analysis_response.analysis_rid}")
 
-    # Step 3: Write all metrics to CSV file
+    # Step 1: Retrieve activity logs (fetch from start_date - 1 day to end_date + 1 day)
+    # Extra day at start: for logs that started prev day and ended on start_date
+    # Extra day at end: for bed_time logs from the day after end_date
+    logger.info("Step 1: Retrieving activity logs from Toggl Track...")
+    start_date_minus_one = (start_dt - timedelta(days=1)).isoformat()
+    end_date_plus_one = get_next_date(request.end_date)
+    all_activity_logs = get_toggl_track_activity_logs(
+        start_date_minus_one, end_date_plus_one
+    )
+    logger.info(f"Retrieved {len(all_activity_logs)} activity logs")
+
+    # Step 2: Build all analysis requests for all dates
+    dates_in_range = _get_dates_in_range(request.start_date, request.end_date)
+    logger.info(f"Step 2: Building requests for {len(dates_in_range)} dates...")
+    all_analysis_requests = []
+
+    for date_idx, current_date in enumerate(dates_in_range, 1):
+        logger.info(f"Building requests for date {date_idx}/{len(dates_in_range)}: {current_date}")
+
+        # Filter activity logs for this date
+        date_activity_logs = _filter_activity_logs_for_date(
+            all_activity_logs, current_date
+        )
+        logger.info(f"  Found {len(date_activity_logs)} activity logs for this date")
+
+        # Get bed_time logs from next date (00:00-12:00)
+        next_date = get_next_date(current_date)
+        bed_time_logs = _get_bed_time_logs_for_next_date(all_activity_logs, next_date)
+        logger.info(f"  Found {len(bed_time_logs)} bed_time logs from next date")
+
+        # Combine activity logs with bed_time logs
+        combined_logs = date_activity_logs + bed_time_logs
+
+        # Get personal prompts and build requests for this date
+        personal_prompts = get_personal_prompt_temporary(current_date)
+        logger.info(f"  Building {len(personal_prompts)} requests for this date")
+
+        for prompt in personal_prompts:
+            all_analysis_requests.append(
+                CreateAnalysisRequest(
+                    prompt=prompt,
+                    response_mode=ResponseMode.METRIC,
+                    activity_logs=combined_logs,
+                )
+            )
+
+    # Step 3: Execute all requests in parallel
+    logger.info(f"Step 3: Executing {len(all_analysis_requests)} analysis requests in parallel...")
+    with ThreadPoolExecutor(max_workers=len(all_analysis_requests)) as executor:
+        analysis_responses = list(executor.map(create_analysis, all_analysis_requests))
+    logger.info(f"Completed {len(analysis_responses)} analyses")
+
+    # Step 4: Write all metrics to CSV file
     desktop_path = Path.home() / "Desktop"
     # Extract date part from ISO-8601 datetime strings
     start_date_part = (

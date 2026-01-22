@@ -42,7 +42,7 @@ def generate_all_metrics(
         f"Calling OpenAI Responses API to generate metrics with prompt: {prompt}"
     )
     response = responses(
-        model="gpt-5-nano",
+        model="gpt-5-mini",
         input_text=prompt,
     )
 
