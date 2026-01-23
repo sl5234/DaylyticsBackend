@@ -107,7 +107,7 @@ def get_toggl_track_activity_logs(
     Get activity logs for a date range.
 
     Retrieves time entries from Toggl API and deserializes them into TogglTimeEntry objects.
-    Also includes activity logs from the previous day that end on the start_date.
+    Automatically fetches previous day entries that end on start_date (for overnight entries).
 
     Args:
         start_date: Start date as ISO-8601 datetime string (e.g., 2026-01-01T00:00:00-08:00)

@@ -85,22 +85,30 @@ A Python backend API built with FastAPI.
    pytest tests/app/test_config.py
    ```
 
-4. **Verify your code builds and works:**
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-5. **Format code:**
+4. **Format code:**
    ```bash
    black app/ tests/
    ```
 
-6. **Lint code:**
+5. **Lint code:**
    ```bash
    ruff check app/ tests/
    ```
 
-7. **Type checking:**
+6. **Type checking:**
    ```bash
    mypy app/
+   ```
+
+7. **Verify your code builds and works:**
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+8. **Open http://localhost:8000/docs#/workflow/start_workflow_workflow__post**
+   ```
+   {
+   "start_date": "2026-01-19T00:00:00-08:00",
+   "end_date": "2026-01-20T23:59:59-08:00"
+   }
    ```

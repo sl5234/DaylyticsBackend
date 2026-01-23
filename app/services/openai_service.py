@@ -43,7 +43,9 @@ def responses(
     last_exception = None
     for attempt in range(MAX_RETRIES + 1):
         try:
-            logger.info(f"Calling OpenAI Responses API with model: {model} (attempt {attempt + 1})")
+            logger.info(
+                f"Calling OpenAI Responses API with model: {model} (attempt {attempt + 1})"
+            )
             response = client.responses.create(
                 model=model,
                 input=input_text,
@@ -55,12 +57,14 @@ def responses(
             last_exception = e
             if attempt < MAX_RETRIES:
                 # Exponential backoff with jitter
-                delay = BASE_DELAY_SECONDS * (2 ** attempt) + random.uniform(0, 1)
+                delay = BASE_DELAY_SECONDS * (2**attempt) + random.uniform(0, 1)
                 logger.warning(
                     f"Rate limit hit, retrying in {delay:.2f}s (attempt {attempt + 1}/{MAX_RETRIES + 1})"
                 )
                 time.sleep(delay)
             else:
-                logger.error(f"Rate limit hit, all {MAX_RETRIES + 1} attempts exhausted")
+                logger.error(
+                    f"Rate limit hit, all {MAX_RETRIES + 1} attempts exhausted"
+                )
 
     raise last_exception  # type: ignore[misc]

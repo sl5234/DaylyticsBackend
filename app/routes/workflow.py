@@ -10,12 +10,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from personal_prompt_temporary import get_personal_prompt_temporary
 from app.services.toggl_service import get_toggl_track_activity_logs
+from app.services.toggl_pdf_service import get_toggl_track_activity_logs_from_pdf
 from app.models.analysis import (
     CreateAnalysisRequest,
     CreateAnalysisResponse,
     ResponseMode,
 )
-from app.models.toggl import TogglTimeEntry
+from app.models.toggl import TogglTimeEntry, InputConfig, ActivityLogSource
 from app.routes.analysis import create_analysis
 from app.utils.general_util import get_next_date
 
@@ -292,6 +293,7 @@ class StartWorkflowRequest(BaseModel):
 
     start_date: str
     end_date: str
+    input_config: InputConfig = InputConfig()
 
 
 class StartWorkflowResponse(BaseModel):
@@ -333,15 +335,29 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
             detail=f"Date range exceeds maximum of 20 days. Got {date_diff} days.",
         )
 
-    # Step 1: Retrieve activity logs (fetch from start_date - 1 day to end_date + 1 day)
-    # Extra day at start: for logs that started prev day and ended on start_date
-    # Extra day at end: for bed_time logs from the day after end_date
-    logger.info("Step 1: Retrieving activity logs from Toggl Track...")
-    start_date_minus_one = (start_dt - timedelta(days=1)).isoformat()
+    # Step 1: Retrieve activity logs based on input mode
+    # Services internally handle start_date - 1 (for overnight entries)
+    # Caller passes end_date + 1 (for bed_time logs from day after end_date)
+    logger.info("Step 1: Retrieving activity logs...")
     end_date_plus_one = get_next_date(request.end_date)
-    all_activity_logs = get_toggl_track_activity_logs(
-        start_date_minus_one, end_date_plus_one
-    )
+
+    if request.input_config.mode == ActivityLogSource.TOGGL_PDF:
+        if not request.input_config.local_paths:
+            raise HTTPException(
+                status_code=400,
+                detail="local_paths is required when mode is TOGGL_PDF",
+            )
+        # PDF mode: extract entries from PDF files
+        logger.info(f"Using PDF mode with {len(request.input_config.local_paths)} files")
+        all_activity_logs = get_toggl_track_activity_logs_from_pdf(
+            request.input_config.local_paths, request.start_date, end_date_plus_one
+        )
+    else:
+        # API mode: retrieve from Toggl Track API
+        logger.info("Using API mode to retrieve activity logs from Toggl Track...")
+        all_activity_logs = get_toggl_track_activity_logs(
+            request.start_date, end_date_plus_one
+        )
     logger.info(f"Retrieved {len(all_activity_logs)} activity logs")
 
     # Step 2: Build all analysis requests for all dates
@@ -350,7 +366,9 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
     all_analysis_requests = []
 
     for date_idx, current_date in enumerate(dates_in_range, 1):
-        logger.info(f"Building requests for date {date_idx}/{len(dates_in_range)}: {current_date}")
+        logger.info(
+            f"Building requests for date {date_idx}/{len(dates_in_range)}: {current_date}"
+        )
 
         # Filter activity logs for this date
         date_activity_logs = _filter_activity_logs_for_date(
@@ -380,7 +398,9 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
             )
 
     # Step 3: Execute all requests in parallel
-    logger.info(f"Step 3: Executing {len(all_analysis_requests)} analysis requests in parallel...")
+    logger.info(
+        f"Step 3: Executing {len(all_analysis_requests)} analysis requests in parallel..."
+    )
     with ThreadPoolExecutor(max_workers=len(all_analysis_requests)) as executor:
         analysis_responses = list(executor.map(create_analysis, all_analysis_requests))
     logger.info(f"Completed {len(analysis_responses)} analyses")
