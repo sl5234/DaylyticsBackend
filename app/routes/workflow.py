@@ -348,7 +348,9 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
                 detail="local_paths is required when mode is TOGGL_PDF",
             )
         # PDF mode: extract entries from PDF files
-        logger.info(f"Using PDF mode with {len(request.input_config.local_paths)} files")
+        logger.info(
+            f"Using PDF mode with {len(request.input_config.local_paths)} files"
+        )
         all_activity_logs = get_toggl_track_activity_logs_from_pdf(
             request.input_config.local_paths, request.start_date, end_date_plus_one
         )
@@ -401,7 +403,8 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
     logger.info(
         f"Step 3: Executing {len(all_analysis_requests)} analysis requests in parallel..."
     )
-    with ThreadPoolExecutor(max_workers=len(all_analysis_requests)) as executor:
+    max_workers = min(len(all_analysis_requests), 8) or 1
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
         analysis_responses = list(executor.map(create_analysis, all_analysis_requests))
     logger.info(f"Completed {len(analysis_responses)} analyses")
 

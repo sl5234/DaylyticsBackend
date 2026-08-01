@@ -11,6 +11,45 @@ from app.services.helpers.toggl_service_helper import deserialize_time_entries
 logger = logging.getLogger(__name__)
 
 
+def _normalize_null_separators(text: str) -> str:
+    """
+    Normalize null bytes produced by broken font encoding in some Toggl PDF exports.
+
+    Some Toggl PDF reports embed a font whose ToUnicode CMap has no entry for
+    ':' or '-', so pdfplumber/pdfminer extract both characters as '\\x00'.
+    A '\\x00' surrounded by spaces (used as a range separator, e.g. between two
+    times) is restored to ' - '; any other '\\x00' (used inside a time like
+    "10:30" or a duration like "0:11:27") is restored to ':'.
+
+    Args:
+        text: Raw text extracted from the PDF, possibly containing '\\x00'
+
+    Returns:
+        Text with '\\x00' replaced by the character it represents
+    """
+    text = re.sub(r" \x00 ", " - ", text)
+    return text.replace("\x00", ":")
+
+
+def _parse_tags(tags_str: str) -> List[str]:
+    """
+    Parse the TAGS column from a Toggl PDF table cell into a list of tags.
+
+    The TAGS column is narrow, so pdfplumber wraps long tags or multi-tag
+    cells onto multiple lines, inserting '\\n' mid-word (e.g. "bed_tim\\ne")
+    or right after the comma separator (e.g. "dog,\\nwalk"). Stripping the
+    newlines before splitting on ',' reassembles the original tag(s).
+
+    Args:
+        tags_str: Raw TAGS cell text, e.g. "dog,\\nwalk" or "bed_tim\\ne"
+
+    Returns:
+        List of individual tag strings, e.g. ["dog", "walk"] or ["bed_time"]
+    """
+    joined = tags_str.replace("\n", "")
+    return [tag.strip() for tag in joined.split(",") if tag.strip()]
+
+
 def _parse_duration_to_seconds(duration_str: str) -> int:
     """
     Parse duration string (H:MM:SS or -) to seconds.
@@ -131,14 +170,14 @@ def _get_time_entries_from_pdf(local_path: Path) -> List[Dict[str, Any]]:
 
                     # Columns: DESCRIPTION, DURATION, MEMBER, PROJECT, TAGS, TIME | DATE
                     description = row[0] or ""
-                    duration_str = row[1] or "-"
+                    duration_str = _normalize_null_separators(row[1] or "-")
                     # row[2] is MEMBER (ignored)
                     # row[3] is PROJECT (ignored)
                     tags_str = row[4] or ""
-                    time_date_str = row[5] or ""
+                    time_date_str = _normalize_null_separators(row[5] or "")
 
                     # Skip empty rows or header-like rows
-                    if not description or description == "DESCRIPTION":
+                    if not description or description.startswith("DESCRIPTION"):
                         continue
 
                     try:
@@ -160,7 +199,7 @@ def _get_time_entries_from_pdf(local_path: Path) -> List[Dict[str, Any]]:
                         # Build raw entry dict
                         raw_entry = {
                             "description": description.strip(),
-                            "tags": [tags_str.strip()] if tags_str.strip() else [],
+                            "tags": _parse_tags(tags_str),
                             "start": start_iso,
                             "stop": stop_iso,
                             "duration": duration_seconds,
