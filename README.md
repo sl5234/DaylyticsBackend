@@ -57,6 +57,34 @@ A Python backend API built with FastAPI.
    - API docs: `http://localhost:8000/docs`
    - Health check: `http://localhost:8000/health`
 
+6. **Create analysis**
+```
+{
+  "start_date": "2026-07-10T00:00:00-08:00",
+  "end_date": "2026-07-23T23:59:59-08:00",
+  "input_config": {
+    "mode": "TOGGL_API"
+  }
+}
+```
+
+   Alternatively, extract activity logs from a downloaded Toggl Track PDF report
+   instead of calling the Toggl API:
+   ```
+   {
+     "start_date": "2026-03-21T00:00:00-08:00",
+     "end_date": "2026-04-14T23:59:59-08:00",
+     "input_config": {
+       "mode": "TOGGL_PDF",
+       "local_paths": ["/Users/sl5234/Desktop/togglAug.pdf"]
+     }
+   }
+   ```
+
+   > **Note:** `start_date` to `end_date` cannot span more than 20 days. Requests
+   > exceeding this range return `400 Bad Request`. Split longer ranges into
+   > multiple requests.
+
 ## Development Setup
 
 1. **Create a virtual environment:**
