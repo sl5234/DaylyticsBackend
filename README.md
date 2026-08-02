@@ -98,6 +98,28 @@ A Python backend API built with FastAPI.
    }
    ```
 
+## Daily activity log analysis
+
+`scripts/run_daily_workflow.py` runs the workflow against the Toggl API for
+you, instead of calling `POST /workflow/` by hand. Not yet on a schedule -
+run it manually once a day for now:
+
+```bash
+cd /Users/sl5234/Workspace/DaylyticsBackend
+source venv/bin/activate
+python scripts/run_daily_workflow.py
+```
+
+This targets yesterday by default (to avoid picking up a currently-running,
+not-yet-stopped Toggl entry), writes the CSV to
+`~/Desktop/activityLogsDailyAnalysis/`, and sends a success/failure
+notification - including the results as a readable table - to the configured
+SNS topic. To re-run for a specific day instead (e.g. to backfill):
+
+```bash
+python scripts/run_daily_workflow.py --date 2026-08-01
+```
+
 ## Development Setup
 
 1. **Create a virtual environment:**
