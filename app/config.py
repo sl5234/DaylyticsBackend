@@ -40,6 +40,11 @@ class Settings(BaseSettings):
         "AQICAHg7rDJp72oZrIfl2vnBxkvlcidlgcJm7juguFV/iuWU+AGM3FYYNItUmrCB7TFQBDL/AAABCDCCAQQGCSqGSIb3DQEHBqCB9jCB8wIBADCB7QYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAzVeJ89eHcesGPCY78CARCAgb9r6mpx1Hgf6YtMrhInMGOJCzgvFfYUb2clYu1z2nwjPEqXHqQsysnTYQo9naCJRssK8bE8zaWxbYEtCFS06ylWQni1ZEZkWh2eOcLNqoyMMIpPMpa7Cn5k+/TxiTVeGfqBsTZc894vTqRqmlRBtbIDd7h/FJ1EZpf0rUzI6SPXQmh4yUw0l3PgiUD+HbS3jPaK8o68mJ/hBE+xeic+ax2sQC7Bilertwnof4CsBuQYcNWhkCDiZscnfhbrNyfM6g=="
     )
 
+    # SNS topic to notify on scheduled job failures (e.g. scripts/run_daily_workflow.py)
+    sns_topic_arn: str = (
+        "arn:aws:sns:us-west-2:792341830430:DaylyticsDailyActivityLogsAnalysis"
+    )
+
     _aws_clients: Optional[AWSClients] = None
 
     model_config = SettingsConfigDict(

@@ -2,7 +2,7 @@ import csv
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -294,13 +294,16 @@ class StartWorkflowRequest(BaseModel):
     start_date: str
     end_date: str
     input_config: InputConfig = InputConfig()
+    output_path: Optional[str] = None
+    """Directory to write the output CSV to. Defaults to ~/Desktop if omitted.
+    Created automatically if it doesn't already exist."""
 
 
 class StartWorkflowResponse(BaseModel):
     """Response model for StartWorkflow endpoint."""
 
     analysis_rid: str
-    output_config: dict
+    output_path: str
 
 
 # This API is temporary.  In the future, we want to deprecate it.
@@ -409,7 +412,12 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
     logger.info(f"Completed {len(analysis_responses)} analyses")
 
     # Step 4: Write all metrics to CSV file
-    desktop_path = Path.home() / "Desktop"
+    output_dir = (
+        Path(request.output_path).expanduser()
+        if request.output_path
+        else Path.home() / "Desktop"
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
     # Extract date part from ISO-8601 datetime strings
     start_date_part = (
         request.start_date.split("T")[0]
@@ -420,11 +428,11 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
         request.end_date.split("T")[0] if "T" in request.end_date else request.end_date
     )
     csv_filename = f"AnalysisOutput{start_date_part}{end_date_part}.csv"
-    csv_path = desktop_path / csv_filename
+    csv_path = output_dir / csv_filename
 
     logger.info(f"Writing all metrics to CSV file at {csv_path}")
     _write_metrics_to_csv(csv_path, analysis_responses)
     logger.info(f"Completed workflow. CSV file saved at {csv_path}")
 
-    # Return any dummy value.
-    return StartWorkflowResponse(analysis_rid="foo", output_config={})
+    # analysis_rid is an unused placeholder.
+    return StartWorkflowResponse(analysis_rid="foo", output_path=str(csv_path))

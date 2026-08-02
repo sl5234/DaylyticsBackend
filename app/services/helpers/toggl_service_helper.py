@@ -127,7 +127,9 @@ def deserialize_time_entries(
     Deserialize an array of time entry dictionaries into TogglTimeEntry objects.
 
     Iterates through time entries and converts each raw time entry dictionary
-    from Toggl API into validated TogglTimeEntry Pydantic models.
+    from Toggl API into validated TogglTimeEntry Pydantic models. An entry
+    that fails to deserialize (e.g. a currently-running entry with no "stop"
+    yet) is skipped and logged rather than aborting the whole batch.
 
     Args:
         time_entries: List of raw time entry dictionaries from Toggl API
@@ -139,7 +141,13 @@ def deserialize_time_entries(
 
     deserialized_entries = []
     for entry in time_entries:
-        deserialized_entry = _deserialize_time_entry(entry)
+        try:
+            deserialized_entry = _deserialize_time_entry(entry)
+        except ValueError as e:
+            logger.warning(
+                f"Skipping time entry {entry.get('id', 'unknown')}: {e}"
+            )
+            continue
         deserialized_entries.append(deserialized_entry)
 
     logger.info(f"Successfully deserialized {len(deserialized_entries)} time entries")

@@ -85,6 +85,19 @@ A Python backend API built with FastAPI.
    > exceeding this range return `400 Bad Request`. Split longer ranges into
    > multiple requests.
 
+   By default, the output CSV is written to `~/Desktop`. Pass `output_path` to
+   write it elsewhere instead (the directory is created if it doesn't exist):
+   ```
+   {
+     "start_date": "2026-07-10T00:00:00-08:00",
+     "end_date": "2026-07-23T23:59:59-08:00",
+     "input_config": {
+       "mode": "TOGGL_API"
+     },
+     "output_path": "~/Desktop/activityLogsDailyAnalysis"
+   }
+   ```
+
 ## Development Setup
 
 1. **Create a virtual environment:**

@@ -30,6 +30,7 @@ class AWSClients:
         self.region_name = region_name
         self.s3_client: Optional[BaseClient] = None
         self.kms_client: Optional[BaseClient] = None
+        self.sns_client: Optional[BaseClient] = None
         self._initialized = False
 
     def initialize(self) -> None:
@@ -55,6 +56,9 @@ class AWSClients:
 
             self.kms_client = boto3.client("kms", region_name=self.region_name)
             logger.info("KMS client initialized")
+
+            self.sns_client = boto3.client("sns", region_name=self.region_name)
+            logger.info("SNS client initialized")
 
             self._initialized = True
             logger.info("All AWS clients initialized successfully")
@@ -106,3 +110,19 @@ class AWSClients:
                 "AWS clients have not been initialized. Call initialize() first."
             )
         return self.kms_client
+
+    def get_sns_client(self) -> BaseClient:
+        """
+        Get SNS (Simple Notification Service) client.
+
+        Returns:
+            boto3 SNS client
+
+        Raises:
+            RuntimeError: If clients have not been initialized
+        """
+        if not self._initialized:
+            raise RuntimeError(
+                "AWS clients have not been initialized. Call initialize() first."
+            )
+        return self.sns_client
