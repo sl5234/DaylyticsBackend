@@ -215,13 +215,15 @@ aws iam put-role-policy \
   --policy-document file://iam_policies/scheduler-permissions-policy.json
 ```
 
-Schedule itself - daily at 11:59 PM Pacific, no payload (so it uses
-`lambda_handler`'s default target day, yesterday):
+Schedule itself - daily at 9:00 PM Pacific, no payload (so it uses
+`lambda_handler`'s default target day, yesterday). Originally created at
+11:59 PM and moved earlier via `aws scheduler update-schedule` with the same
+parameters below:
 
 ```bash
 aws scheduler create-schedule \
   --name ActivityLogsDailyAnalyzerSchedule \
-  --schedule-expression "cron(59 23 * * ? *)" \
+  --schedule-expression "cron(0 21 * * ? *)" \
   --schedule-expression-timezone "America/Los_Angeles" \
   --flexible-time-window '{"Mode": "OFF"}' \
   --target '{
