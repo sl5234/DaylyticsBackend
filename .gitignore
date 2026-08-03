@@ -61,3 +61,6 @@ personal_prompt_temporary.py
 
 # Local-only test fixtures (personal data, not for version control)
 tests/DO_NOT_COMMIT_LOCAL_FIXTURES/
+
+# AWS deployment log (account IDs, ARNs, resource names - local reference only)
+ACTIVITY_LOGS_DAILY_ANALYZER_DEPLOYMENTS.md

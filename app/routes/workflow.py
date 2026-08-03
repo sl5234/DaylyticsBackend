@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from personal_prompt_temporary import get_personal_prompt_temporary
 from app.services.toggl_service import get_toggl_track_activity_logs
-from app.services.toggl_pdf_service import get_toggl_track_activity_logs_from_pdf
 from app.models.analysis import (
     CreateAnalysisRequest,
     CreateAnalysisResponse,
@@ -350,7 +349,11 @@ def start_workflow(request: StartWorkflowRequest) -> StartWorkflowResponse:
                 status_code=400,
                 detail="local_paths is required when mode is TOGGL_PDF",
             )
-        # PDF mode: extract entries from PDF files
+        # PDF mode: extract entries from PDF files. Imported lazily so
+        # TOGGL_API-only callers (e.g. the daily workflow Lambda) don't
+        # need pdfplumber installed at all.
+        from app.services.toggl_pdf_service import get_toggl_track_activity_logs_from_pdf
+
         logger.info(
             f"Using PDF mode with {len(request.input_config.local_paths)} files"
         )

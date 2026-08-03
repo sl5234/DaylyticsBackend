@@ -2,6 +2,7 @@ import importlib.util
 import sys
 from datetime import date, datetime
 from pathlib import Path
+from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -134,6 +135,106 @@ class TestBuildSuccessDetail:
 
         assert str(missing_path) in detail
         assert "completed successfully" in detail
+
+    def test_includes_s3_uri_when_provided(self, run_daily_workflow, tmp_path):
+        csv_path = tmp_path / "AnalysisOutput2026-08-01.csv"
+        csv_path.write_text("Day,TotalWorkTimePerDay\n08/01/2026,120\n")
+
+        detail = run_daily_workflow._build_success_detail(
+            str(csv_path), s3_uri="s3://my-bucket/AnalysisOutput2026-08-01.csv"
+        )
+
+        assert "Also uploaded to s3://my-bucket/AnalysisOutput2026-08-01.csv" in detail
+
+    def test_omits_s3_note_when_not_provided(self, run_daily_workflow, tmp_path):
+        csv_path = tmp_path / "AnalysisOutput2026-08-01.csv"
+        csv_path.write_text("Day,TotalWorkTimePerDay\n08/01/2026,120\n")
+
+        detail = run_daily_workflow._build_success_detail(str(csv_path))
+
+        assert "Also uploaded" not in detail
+
+
+class TestUploadCsvToS3:
+    def test_uploads_with_filename_as_key_and_returns_uri(
+        self, run_daily_workflow, tmp_path
+    ):
+        csv_path = tmp_path / "AnalysisOutput2026-08-01.csv"
+        csv_path.write_text("Day,TotalWorkTimePerDay\n08/01/2026,120\n")
+
+        mock_s3_client = MagicMock()
+        mock_aws_clients = MagicMock()
+        mock_aws_clients.get_s3_client.return_value = mock_s3_client
+
+        s3_uri = run_daily_workflow._upload_csv_to_s3(
+            str(csv_path), "my-bucket", mock_aws_clients
+        )
+
+        mock_s3_client.upload_file.assert_called_once_with(
+            str(csv_path), "my-bucket", "AnalysisOutput2026-08-01.csv"
+        )
+        assert s3_uri == "s3://my-bucket/AnalysisOutput2026-08-01.csv"
+
+
+class TestLambdaHandler:
+    def test_defaults_to_yesterday_and_uploads_to_configured_bucket(
+        self, run_daily_workflow, monkeypatch
+    ):
+        mock_run = MagicMock()
+        monkeypatch.setattr(run_daily_workflow, "_run", mock_run)
+
+        run_daily_workflow.lambda_handler({}, None)
+
+        args, kwargs = mock_run.call_args
+        called_target_date = args[0] if args else kwargs["target_date"]
+        expected = run_daily_workflow._get_default_target_date(
+            datetime.now(SEATTLE_TZ)
+        )
+        assert called_target_date == expected
+        assert kwargs.get("output_dir", args[1] if len(args) > 1 else None) == "/tmp"
+        assert kwargs.get("s3_bucket") == run_daily_workflow.settings.s3_output_bucket
+
+    def test_honors_date_override_in_event(self, run_daily_workflow, monkeypatch):
+        mock_run = MagicMock()
+        monkeypatch.setattr(run_daily_workflow, "_run", mock_run)
+
+        run_daily_workflow.lambda_handler({"date": "2026-08-01"}, None)
+
+        args, kwargs = mock_run.call_args
+        called_target_date = args[0] if args else kwargs["target_date"]
+        assert called_target_date == date(2026, 8, 1)
+
+    def test_handles_empty_event(self, run_daily_workflow, monkeypatch):
+        mock_run = MagicMock()
+        monkeypatch.setattr(run_daily_workflow, "_run", mock_run)
+
+        run_daily_workflow.lambda_handler(None, None)
+
+        mock_run.assert_called_once()
+
+
+class TestMain:
+    def test_exits_nonzero_on_failure(self, run_daily_workflow, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["run_daily_workflow.py"])
+        monkeypatch.setattr(
+            run_daily_workflow, "_run", MagicMock(side_effect=RuntimeError("boom"))
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            run_daily_workflow.main()
+        assert exc_info.value.code == 1
+
+    def test_uses_desktop_output_dir(self, run_daily_workflow, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["run_daily_workflow.py"])
+        mock_run = MagicMock()
+        monkeypatch.setattr(run_daily_workflow, "_run", mock_run)
+
+        run_daily_workflow.main()
+
+        _, kwargs = mock_run.call_args
+        args = mock_run.call_args.args
+        output_dir = kwargs.get("output_dir", args[1] if len(args) > 1 else None)
+        assert output_dir == "~/Desktop/activityLogsDailyAnalysis"
 
 
 class TestWorkflowRunEvent:
