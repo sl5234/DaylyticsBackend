@@ -45,6 +45,11 @@ class Settings(BaseSettings):
         "arn:aws:sns:us-west-2:792341830430:DaylyticsDailyActivityLogsAnalysis"
     )
 
+    # S3 bucket the Lambda-based daily workflow uploads its output CSV to
+    s3_output_bucket: str = (
+        "activitylogs-daily-analysis-outputs-792341830430-us-west-2"
+    )
+
     _aws_clients: Optional[AWSClients] = None
 
     model_config = SettingsConfigDict(
